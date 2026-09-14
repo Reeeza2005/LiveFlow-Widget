@@ -1,13 +1,10 @@
-name: Build and Release All
-
+kname: Build and Release All
 on:
   push:
     tags:
       - 'v*'
-
 permissions:
   contents: write
-
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
@@ -28,7 +25,6 @@ jobs:
           
       - name: Build AppImage and DEB
         run: |
-          # رفع خطای ماژول با اضافه کردن مسیر فعلی
           pyinstaller --noconsole --onedir --paths . --name="liveflow-widget" app/widget.py
           
           wget -nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
@@ -58,7 +54,6 @@ jobs:
           export APPIMAGE_EXTRACT_AND_RUN=1
           ARCH=x86_64 ./appimagetool AppDir LiveFlow-Widget-x86_64.AppImage
           
-          # ساخت پکیج استاندارد لینوکس در پوشه opt
           mkdir -p deb-package/DEBIAN deb-package/opt/liveflow-widget deb-package/usr/bin deb-package/usr/share/applications deb-package/usr/share/pixmaps
           cp -r dist/liveflow-widget/* deb-package/opt/liveflow-widget/
           
@@ -74,7 +69,7 @@ jobs:
           
           cat << 'EOF' > deb-package/DEBIAN/control
           Package: liveflow-widget
-          Version: 1.0.5
+          Version: 1.0.8
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -82,14 +77,14 @@ jobs:
           Description: Modern live currency and market price tracker widget for Linux
           EOF
           
-          dpkg-deb --build deb-package LiveFlow-Widget_1.0.5_amd64.deb
+          dpkg-deb --build deb-package LiveFlow-Widget_1.0.8_amd64.deb
 
       - name: Upload Linux Artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             LiveFlow-Widget-x86_64.AppImage
-            LiveFlow-Widget_1.0.5_amd64.deb
+            LiveFlow-Widget_1.0.8_amd64.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
