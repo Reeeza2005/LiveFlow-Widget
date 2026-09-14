@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies & tools
         run: |
           sudo apt update
-          sudo apt install -y dpkg-dev wget
+          sudo apt install -y dpkg-dev wget libfuse2
           python -m pip install --upgrade pip
           pip install PySide6 requests pyinstaller
           
@@ -54,6 +54,7 @@ jobs:
           EOF
           chmod +x AppDir/AppRun
           
+          export APPIMAGE_EXTRACT_AND_RUN=1
           ARCH=x86_64 ./appimagetool AppDir LiveFlow-Widget-x86_64.AppImage
           
           mkdir -p deb-package/DEBIAN deb-package/usr/bin deb-package/usr/share/applications deb-package/usr/share/pixmaps
@@ -63,7 +64,7 @@ jobs:
           
           cat << 'EOF' > deb-package/DEBIAN/control
           Package: liveflow-widget
-          Version: 1.0.3
+          Version: 1.0.4
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -71,14 +72,14 @@ jobs:
           Description: Modern live currency and market price tracker widget for Linux
           EOF
           
-          dpkg-deb --build deb-package LiveFlow-Widget_1.0.3_amd64.deb
+          dpkg-deb --build deb-package LiveFlow-Widget_1.0.4_amd64.deb
 
       - name: Upload Linux Artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             LiveFlow-Widget-x86_64.AppImage
-            LiveFlow-Widget_1.0.3_amd64.deb
+            LiveFlow-Widget_1.0.4_amd64.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
