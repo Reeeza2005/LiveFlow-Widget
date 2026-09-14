@@ -1,0 +1,68 @@
+{
+  "markets": [
+    {
+      "key": "sekee",
+      "name": "سکه امامی",
+      "enabled": true
+    },
+    {
+      "key": "geram18",
+      "name": "گرم ۱۸ عیار",
+      "enabled": true
+    },
+    {
+      "key": "ons",
+      "name": "انس جهانی طلا",
+      "enabled": true
+    },
+    {
+      "key": "price_dollar_rl",
+      "name": "دلار آمریکا",
+      "enabled": true
+    },
+    {
+      "key": "crypto-tether",
+      "name": "تتر",
+      "enabled": true
+    },
+    {
+      "key": "price_eur",
+      "name": "یورو",
+      "enabled": true
+    },
+    {
+      "key": "crypto-bitcoin",
+      "name": "بیت‌کوین",
+      "enabled": true
+    },
+    {
+      "key": "crypto-ethereum",
+      "name": "اتریوم",
+      "enabled": true
+    },
+    {
+      "key": "oil_brent",
+      "name": "نفت برنت",
+      "enabled": true
+    },
+    {
+      "key": "gc30",
+      "name": "شاخص بورس",
+      "enabled": true
+    }
+  ],
+  "appearance": {
+    "opacity": 228,
+    "font_size": 10,
+    "font_family": "Noto Sans",
+    "rows_visible": 6,
+    "interval": 120,
+    "language": "fa",
+    "autostart": false
+  },
+  "hotkeys": {
+    "close": "Ctrl+Q",
+    "hide": "Ctrl+H",
+    "settings": "Ctrl+Alt+S"
+  }
+}
