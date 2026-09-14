@@ -5,7 +5,7 @@ from pathlib import Path
 import requests
 
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QColor, QPainter, QFont, QKeySequence
+from PySide6.QtGui import QColor, QPainter, QFont, QKeySequence, QIcon
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QStackedWidget,
@@ -15,7 +15,8 @@ from PySide6.QtWidgets import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_FILE = BASE_DIR / "config" / "markets.json"
+# مسیر جدید فایل تنظیمات در پوشه کاربر (یکپارچه با ویجت اصلی)
+CONFIG_FILE = Path.home() / ".liveflow_settings.json"
 AUTOSTART_DIR = Path.home() / ".config" / "autostart"
 DESKTOP_FILE = AUTOSTART_DIR / "liveflow-widget.desktop"
 
@@ -62,6 +63,13 @@ class SettingsWindow(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
+        # ====== اضافه کردن آیکون به پنجره تنظیمات ======
+        icon_path = Path("/usr/share/pixmaps/liveflow-widget.png")
+        if not icon_path.exists():
+            icon_path = BASE_DIR / "assets" / "tether.png"
+        self.setWindowIcon(QIcon(str(icon_path)))
+        # ===============================================
+
         self.config = {
             "markets": [],
             "appearance": {"opacity": 210, "font_size": 13, "font_family": "Noto Sans", "rows_visible": 6, "interval": 120, "language": "fa", "autostart": False},
@@ -72,8 +80,7 @@ class SettingsWindow(QWidget):
         self.populate_markets()
         self.apply_live_preview()
 
-        # بررسی خودکار به‌روزرسانی در پس‌زمینه هنگام اجرای تنظیمات
-        self.auto_update_worker = UpdateCheckerWorker(current_version="1.0.0", automatic=True)
+        self.auto_update_worker = UpdateCheckerWorker(current_version="1.0.6", automatic=True)
         self.auto_update_worker.update_found.connect(self.show_update_dialog)
         self.auto_update_worker.start()
 
@@ -184,7 +191,6 @@ X-GNOME-Autostart-enabled=true
         main = QHBoxLayout(self)
         main.setContentsMargins(20, 20, 20, 20)
         
-        # سایدبار
         sidebar = QVBoxLayout()
         title = QLabel("تنظیمات")
         title.setFont(QFont("Noto Sans", 18, QFont.Bold))
@@ -201,7 +207,6 @@ X-GNOME-Autostart-enabled=true
         
         sidebar.addStretch()
 
-        # دکمه بررسی به‌روزرسانی دستی
         self.btn_update = QPushButton("🔄    بررسی به‌روزرسانی")
         self.btn_update.setStyleSheet("background: rgba(56,189,248,15); color: #38bdf8;")
         self.btn_update.clicked.connect(self.manual_check_updates)
@@ -222,7 +227,6 @@ X-GNOME-Autostart-enabled=true
         self.stacked = QStackedWidget()
         main.addWidget(self.stacked, 3)
 
-        # ====== تب بازارها ======
         page_markets = QWidget()
         layout_markets = QVBoxLayout(page_markets)
         layout_markets.setSpacing(10)
@@ -266,7 +270,6 @@ X-GNOME-Autostart-enabled=true
         layout_markets.addLayout(custom_layout)
         self.stacked.addWidget(page_markets)
 
-        # ====== تب ظاهر ======
         page_app = QWidget()
         layout_app = QVBoxLayout(page_app)
         layout_app.setSpacing(12)
@@ -323,7 +326,6 @@ X-GNOME-Autostart-enabled=true
         row_lang.addWidget(self.combo_lang)
         layout_app.addLayout(row_lang)
 
-        # چک‌باکس اجرای خودکار
         self.chk_autostart = QCheckBox("اجرای خودکار هنگام روشن شدن سیستم (Autostart)")
         self.chk_autostart.setChecked(self.config["appearance"].get("autostart", False))
         layout_app.addWidget(self.chk_autostart)
@@ -331,7 +333,6 @@ X-GNOME-Autostart-enabled=true
         layout_app.addStretch()
         self.stacked.addWidget(page_app)
 
-        # ====== تب میانبرها ======
         page_hotkeys = QWidget()
         layout_keys = QVBoxLayout(page_hotkeys)
         
@@ -362,7 +363,7 @@ X-GNOME-Autostart-enabled=true
     def manual_check_updates(self):
         self.btn_update.setText("⏳ در حال بررسی...")
         self.btn_update.setEnabled(False)
-        self.update_worker = UpdateCheckerWorker(current_version="1.0.0", automatic=False)
+        self.update_worker = UpdateCheckerWorker(current_version="1.0.6", automatic=False)
         self.update_worker.update_found.connect(self.on_update_found_manual)
         self.update_worker.no_update.connect(self.on_no_update_manual)
         self.update_worker.error_occurred.connect(self.on_error_manual)
