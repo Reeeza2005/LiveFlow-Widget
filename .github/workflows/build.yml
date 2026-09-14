@@ -1,4 +1,4 @@
-kname: Build and Release All
+name: Build and Release All
 on:
   push:
     tags:
@@ -69,7 +69,7 @@ jobs:
           
           cat << 'EOF' > deb-package/DEBIAN/control
           Package: liveflow-widget
-          Version: 1.0.8
+          Version: 1.0.9
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -77,14 +77,14 @@ jobs:
           Description: Modern live currency and market price tracker widget for Linux
           EOF
           
-          dpkg-deb --build deb-package LiveFlow-Widget_1.0.8_amd64.deb
+          dpkg-deb --build deb-package LiveFlow-Widget_1.0.9_amd64.deb
 
       - name: Upload Linux Artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             LiveFlow-Widget-x86_64.AppImage
-            LiveFlow-Widget_1.0.8_amd64.deb
+            LiveFlow-Widget_1.0.9_amd64.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
