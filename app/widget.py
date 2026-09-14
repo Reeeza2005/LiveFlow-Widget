@@ -1,6 +1,7 @@
 import sys
 import json
 import signal
+import shutil
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
@@ -11,8 +12,23 @@ from PySide6.QtWidgets import (
 )
 from app.tgju import get_prices
 
+# مسیر پوشه نصب برنامه
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_FILE = BASE_DIR / "config" / "markets.json"
+DEFAULT_CONFIG = BASE_DIR / "config" / "markets.json"
+
+# مسیر فایل تنظیمات در پوشه شخصی کاربر (برای رفع مشکل دسترسی در لینوکس)
+CONFIG_FILE = Path.home() / ".liveflow_settings.json"
+
+# اگر فایل تنظیمات کاربر وجود نداشت، فایل پیش‌فرض را کپی کن یا یک فایل جدید بساز
+if not CONFIG_FILE.exists():
+    try:
+        if DEFAULT_CONFIG.exists():
+            shutil.copy(DEFAULT_CONFIG, CONFIG_FILE)
+        else:
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump({"markets": [], "appearance": {}}, f)
+    except Exception as e:
+        print(f"Error creating config: {e}")
 
 MARKET_SYMBOLS = {
     "sekee": "🪙", "nim": "🪙", "rob": "🪙", "geram18": "🟡", "geram24": "🟡", "ons": "🥇",
@@ -68,7 +84,8 @@ class WidgetWindow(QWidget):
             hot_cfg = data.get("hotkeys", {})
             self.hotkey_close = hot_cfg.get("close", "Ctrl+Q")
             self.hotkey_hide = hot_cfg.get("hide", "Ctrl+H")
-        except Exception:
+        except Exception as e:
+            print(f"Error loading config: {e}")
             self.markets = []
 
     def setup_hotkeys(self):
@@ -106,7 +123,6 @@ class WidgetWindow(QWidget):
             self.price_labels[key].setText(price_text.strip())
 
             color = "#34d399" if direction == "high" else "#fb7185" if direction == "low" else "#f8fafc"
-            # بدون حاشیه و کاملاً شفاف
             self.price_labels[key].setStyleSheet(f"color: {color}; background: transparent; border: none; font-weight: bold;")
 
     def build_ui(self):
@@ -122,7 +138,6 @@ class WidgetWindow(QWidget):
         
         panel = QFrame()
         panel.setAttribute(Qt.WA_StyledBackground, True)
-        # بدنه اصلی ویجت (شیشه‌ای)
         panel.setStyleSheet(f"""
             QFrame {{
                 background-color: rgba(15, 23, 42, {self.opacity});
@@ -137,7 +152,6 @@ class WidgetWindow(QWidget):
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        # حذف هرگونه حاشیه از اسکرول اریا
         scroll.setStyleSheet("""
             QScrollArea { background: transparent; border: none; }
             QScrollArea > QWidget > QWidget { background: transparent; }
@@ -170,7 +184,6 @@ class WidgetWindow(QWidget):
                 sym = MARKET_SYMBOLS.get(key, "•")
                 
                 row = QWidget()
-                # حذف کامل استایل و حاشیه از خطوط ردیف‌ها
                 row.setStyleSheet("background: transparent; border: none;")
                 r_lay = QHBoxLayout(row)
                 r_lay.setContentsMargins(0, 0, 0, 0)
