@@ -8,3 +8,4 @@ AppDir/
 *.zip
 __pycache__/
 venv/
+appimagetool

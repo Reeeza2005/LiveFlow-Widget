@@ -27,7 +27,8 @@ jobs:
         run: |
           pyinstaller --noconsole --onedir --paths . --name="liveflow-widget" app/widget.py
           
-          wget -nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          # دانلود اجباری نسخه سالم ابزار
+          wget -qO appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
           
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/pixmaps
@@ -41,6 +42,13 @@ jobs:
           Categories=Utility;Finance;
           EOF
           cp AppDir/liveflow-widget.desktop AppDir/usr/share/applications/
+          
+          # بررسی وجود آیکون و دانلود خودکار آن در صورت عدم وجود
+          mkdir -p assets
+          if [ ! -f assets/tether.png ]; then
+            wget -qO assets/tether.png https://cryptologos.cc/logos/tether-usdt-logo.png || touch assets/tether.png
+          fi
+          
           cp assets/tether.png AppDir/liveflow-widget.png
           cp assets/tether.png AppDir/usr/share/pixmaps/liveflow-widget.png
           
@@ -69,7 +77,7 @@ jobs:
           
           cat << 'EOF' > deb-package/DEBIAN/control
           Package: liveflow-widget
-          Version: 1.0.9
+          Version: 1.1.0
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -77,14 +85,14 @@ jobs:
           Description: Modern live currency and market price tracker widget for Linux
           EOF
           
-          dpkg-deb --build deb-package LiveFlow-Widget_1.0.9_amd64.deb
+          dpkg-deb --build deb-package LiveFlow-Widget_1.1.0_amd64.deb
 
       - name: Upload Linux Artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             LiveFlow-Widget-x86_64.AppImage
-            LiveFlow-Widget_1.0.9_amd64.deb
+            LiveFlow-Widget_1.1.0_amd64.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
