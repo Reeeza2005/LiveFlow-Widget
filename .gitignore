@@ -1,0 +1,11 @@
+dist/
+build/
+deb-package/
+AppDir/
+*.spec
+*.deb
+*.AppImage
+*.zip
+__pycache__/
+venv/
+appimagetool
