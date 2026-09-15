@@ -75,3 +75,33 @@ jobs:
         with:
           name: LiveFlow-Widget-Linux-DEB
           path: LiveFlow-Widget-amd64.deb
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Build Windows executable
+        run: |
+          pyinstaller widget.spec
+
+      - name: Rename executable
+        run: |
+          Rename-Item dist/widget.exe LiveFlow-Widget.exe
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveFlow-Widget-Windows
+          path: dist/LiveFlow-Widget.exe
