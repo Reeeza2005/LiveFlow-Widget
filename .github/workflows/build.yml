@@ -41,3 +41,37 @@ jobs:
         with:
           name: LiveFlow-Widget-Linux-AppImage
           path: LiveFlow-Widget-x86_64.AppImage
+      - name: Build DEB package
+        run: |
+          mkdir -p deb-package/DEBIAN
+          mkdir -p deb-package/usr/bin
+          mkdir -p deb-package/usr/share/applications
+          mkdir -p deb-package/usr/share/icons/hicolor/256x256/apps
+
+          cp dist/widget deb-package/usr/bin/liveflow-widget
+          chmod +x deb-package/usr/bin/liveflow-widget
+
+          cp AppDir/liveflow-widget.desktop \
+             deb-package/usr/share/applications/liveflow-widget.desktop
+
+          cp AppDir/liveflow-widget.png \
+             deb-package/usr/share/icons/hicolor/256x256/apps/liveflow-widget.png
+
+          cat > deb-package/DEBIAN/control << 'EOF'
+          Package: liveflow-widget
+          Version: 1.0.0
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Reza
+          Description: LiveFlow financial market widget
+           TGJU live market price widget for Linux.
+          EOF
+
+          dpkg-deb --build deb-package LiveFlow-Widget-amd64.deb
+
+      - name: Upload Linux DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveFlow-Widget-Linux-DEB
+          path: LiveFlow-Widget-amd64.deb
