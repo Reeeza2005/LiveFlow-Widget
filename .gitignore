@@ -9,3 +9,8 @@ AppDir/
 __pycache__/
 venv/
 appimagetool
+deb_extracted/
+*.tar.gz
+venv/
+__pycache__/
+.aider*/
