@@ -145,3 +145,26 @@ jobs:
         with:
           name: LiveFlow-Widget-macOS
           path: LiveFlow-Widget-macOS.dmg
+  release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="v1.0.${{ github.run_number }}"
+          gh release create "$VERSION" \
+            release-files/* \
+            --title "LiveFlow Widget $VERSION" \
+            --generate-notes
