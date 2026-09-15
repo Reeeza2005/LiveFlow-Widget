@@ -58,7 +58,7 @@
     "rows_visible": 6,
     "interval": 120,
     "language": "fa",
-    "autostart": false
+    "autostart": true
   },
   "hotkeys": {
     "close": "Ctrl+Q",

@@ -12,7 +12,11 @@ from PySide6.QtWidgets import (
 from app.tgju import get_prices
 from app.settings import SettingsWindow
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
 CONFIG_FILE = BASE_DIR / "config" / "markets.json"
 
 MARKET_SYMBOLS = {

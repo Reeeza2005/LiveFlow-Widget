@@ -14,3 +14,10 @@ deb_extracted/
 venv/
 __pycache__/
 .aider*/
+
+debug.log
+venv/
+build/
+dist/
+AppDir/usr/bin/liveflow-widget
+*.AppImage

@@ -12,7 +12,11 @@ from PySide6.QtWidgets import (
     QKeySequenceEdit, QMessageBox, QLineEdit, QComboBox, QCheckBox
 )
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
 CONFIG_FILE = BASE_DIR / "config" / "markets.json"
 AUTOSTART_DIR = Path.home() / ".config" / "autostart"
 DESKTOP_FILE = AUTOSTART_DIR / "liveflow-widget.desktop"
