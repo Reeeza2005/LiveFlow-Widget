@@ -1,11 +1,9 @@
 import sys
 import json
-import webbrowser
 from pathlib import Path
-import requests
 
-from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QColor, QPainter, QFont, QKeySequence, QIcon
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPainter, QFont, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QStackedWidget,
@@ -15,8 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-# مسیر جدید فایل تنظیمات در پوشه کاربر (یکپارچه با ویجت اصلی)
-CONFIG_FILE = Path.home() / ".liveflow_settings.json"
+CONFIG_FILE = BASE_DIR / "config" / "markets.json"
 AUTOSTART_DIR = Path.home() / ".config" / "autostart"
 DESKTOP_FILE = AUTOSTART_DIR / "liveflow-widget.desktop"
 
@@ -27,48 +24,12 @@ ALL_MARKETS = {
     "بورس و انرژی": [("oil_brent", "نفت برنت"), ("gc30", "شاخص بورس"), ("silver", "انس نقره")]
 }
 
-class UpdateCheckerWorker(QThread):
-    update_found = Signal(str, str)  # latest_version, release_url
-    no_update = Signal()
-    error_occurred = Signal()
-
-    def __init__(self, current_version="1.0.0", automatic=True):
-        super().__init__()
-        self.current_version = current_version
-        self.automatic = automatic
-
-    def run(self):
-        url = "https://api.github.com/repos/Reeeza2005/LiveFlow-Widget/releases/latest"
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                latest_version = data.get("tag_name", "").lstrip("v")
-                release_url = data.get("html_url", "https://github.com/Reeeza2005/LiveFlow-Widget/releases")
-                
-                if latest_version and latest_version != self.current_version:
-                    self.update_found.emit(latest_version, release_url)
-                elif not self.automatic:
-                    self.no_update.emit()
-            elif not self.automatic:
-                self.error_occurred.emit()
-        except Exception:
-            if not self.automatic:
-                self.error_occurred.emit()
-
 class SettingsWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setFixedSize(860, 660)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
-
-        # ====== اضافه کردن آیکون به پنجره تنظیمات ======
-        icon_path = Path("/usr/share/pixmaps/liveflow-widget.png")
-        if not icon_path.exists():
-            icon_path = BASE_DIR / "assets" / "tether.png"
-        self.setWindowIcon(QIcon(str(icon_path)))
-        # ===============================================
 
         self.config = {
             "markets": [],
@@ -79,10 +40,6 @@ class SettingsWindow(QWidget):
         self.build_ui()
         self.populate_markets()
         self.apply_live_preview()
-
-        self.auto_update_worker = UpdateCheckerWorker(current_version="1.0.6", automatic=True)
-        self.auto_update_worker.update_found.connect(self.show_update_dialog)
-        self.auto_update_worker.start()
 
     def load_config(self):
         try:
@@ -206,12 +163,6 @@ X-GNOME-Autostart-enabled=true
             sidebar.addWidget(btn)
         
         sidebar.addStretch()
-
-        self.btn_update = QPushButton("🔄    بررسی به‌روزرسانی")
-        self.btn_update.setStyleSheet("background: rgba(56,189,248,15); color: #38bdf8;")
-        self.btn_update.clicked.connect(self.manual_check_updates)
-        sidebar.addWidget(self.btn_update)
-
         self.btn_save = QPushButton("✓    ذخیره تنظیمات")
         self.btn_save.setStyleSheet("background: rgba(56,189,248,30); color: #38bdf8;")
         self.btn_save.clicked.connect(self.save_config)
@@ -219,7 +170,7 @@ X-GNOME-Autostart-enabled=true
 
         btn_close = QPushButton("✕    خروج")
         btn_close.setStyleSheet("color: #fb7185;")
-        btn_close.clicked.connect(QApplication.quit)
+        btn_close.clicked.connect(self.close)
         sidebar.addWidget(btn_close)
         
         main.addLayout(sidebar, 1)
@@ -227,6 +178,7 @@ X-GNOME-Autostart-enabled=true
         self.stacked = QStackedWidget()
         main.addWidget(self.stacked, 3)
 
+        # تب بازارها
         page_markets = QWidget()
         layout_markets = QVBoxLayout(page_markets)
         layout_markets.setSpacing(10)
@@ -270,6 +222,7 @@ X-GNOME-Autostart-enabled=true
         layout_markets.addLayout(custom_layout)
         self.stacked.addWidget(page_markets)
 
+        # تب ظاهر
         page_app = QWidget()
         layout_app = QVBoxLayout(page_app)
         layout_app.setSpacing(12)
@@ -333,6 +286,7 @@ X-GNOME-Autostart-enabled=true
         layout_app.addStretch()
         self.stacked.addWidget(page_app)
 
+        # تب میانبرها
         page_hotkeys = QWidget()
         layout_keys = QVBoxLayout(page_hotkeys)
         
@@ -359,41 +313,6 @@ X-GNOME-Autostart-enabled=true
         self.btn_appearance.clicked.connect(lambda: self.switch_page(1, self.btn_appearance))
         self.btn_hotkeys.clicked.connect(lambda: self.switch_page(2, self.btn_hotkeys))
         self.switch_page(0, self.btn_markets)
-
-    def manual_check_updates(self):
-        self.btn_update.setText("⏳ در حال بررسی...")
-        self.btn_update.setEnabled(False)
-        self.update_worker = UpdateCheckerWorker(current_version="1.0.6", automatic=False)
-        self.update_worker.update_found.connect(self.on_update_found_manual)
-        self.update_worker.no_update.connect(self.on_no_update_manual)
-        self.update_worker.error_occurred.connect(self.on_error_manual)
-        self.update_worker.start()
-
-    def on_update_found_manual(self, latest_version, release_url):
-        self.btn_update.setText("🔄    بررسی به‌روزرسانی")
-        self.btn_update.setEnabled(True)
-        self.show_update_dialog(latest_version, release_url)
-
-    def on_no_update_manual(self):
-        self.btn_update.setText("🔄    بررسی به‌روزرسانی")
-        self.btn_update.setEnabled(True)
-        QMessageBox.information(self, "بررسی به‌روزرسانی", "برنامه شما به‌روز است و از آخرین نسخه استفاده می‌کنید.")
-
-    def on_error_manual(self):
-        self.btn_update.setText("🔄    بررسی به‌روزرسانی")
-        self.btn_update.setEnabled(True)
-        QMessageBox.warning(self, "خطا", "خطا در اتصال به اینترنت برای بررسی به‌روزرسانی.")
-
-    def show_update_dialog(self, latest_version, release_url):
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Information)
-        msg.setWindowTitle("نسخه جدید موجود است")
-        msg.setText(f"نسخه جدید ({latest_version}) برای LiveFlow Widget منتشر شده است!")
-        msg.setInformativeText("آیا می‌خواهید برای دانلود به صفحه گیت‌هاب بروید؟")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        
-        if msg.exec() == QMessageBox.Yes:
-            webbrowser.open(release_url)
 
     def populate_markets(self):
         for cat, items in ALL_MARKETS.items():
@@ -458,11 +377,3 @@ X-GNOME-Autostart-enabled=true
         painter.setBrush(QColor(15, 23, 42, 240))
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(0, 0, self.width(), self.height(), 20, 20)
-
-if __name__ == "__main__":
-    import signal
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-    app = QApplication(sys.argv)
-    w = SettingsWindow()
-    w.show()
-    sys.exit(app.exec())
