@@ -59,7 +59,7 @@ jobs:
 
           cat > deb-package/DEBIAN/control << 'EOF'
           Package: liveflow-widget
-          Version: 1.1.4
+          Version: 1.1.5
           Section: utils
           Priority: optional
           Architecture: amd64
