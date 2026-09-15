@@ -6,8 +6,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: get_version
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
   build-linux:
     runs-on: ubuntu-22.04
+    needs: version
 
     steps:
       - name: Checkout
@@ -32,17 +47,23 @@ jobs:
           mkdir -p AppDir/usr/bin
           cp dist/widget AppDir/usr/bin/liveflow-widget
           chmod +x AppDir/usr/bin/liveflow-widget
+
           wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ./appimagetool AppDir LiveFlow-Widget-x86_64.AppImage
+
+          ./appimagetool AppDir \
+            "LiveFlow-Widget-${{ needs.version.outputs.version }}-x86_64.AppImage"
 
       - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
         with:
           name: LiveFlow-Widget-Linux-AppImage
-          path: LiveFlow-Widget-x86_64.AppImage
+          path: LiveFlow-Widget-${{ needs.version.outputs.version }}-x86_64.AppImage
+
       - name: Build DEB package
         run: |
+          VERSION="${{ needs.version.outputs.version }}"
+
           mkdir -p deb-package/DEBIAN
           mkdir -p deb-package/usr/bin
           mkdir -p deb-package/usr/share/applications
@@ -57,9 +78,9 @@ jobs:
           cp AppDir/liveflow-widget.png \
              deb-package/usr/share/icons/hicolor/256x256/apps/liveflow-widget.png
 
-          cat > deb-package/DEBIAN/control << 'EOF'
+          cat > deb-package/DEBIAN/control << EOF
           Package: liveflow-widget
-          Version: 1.1.5
+          Version: ${VERSION}
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -68,15 +89,19 @@ jobs:
            TGJU live market price widget for Linux.
           EOF
 
-          dpkg-deb --build deb-package LiveFlow-Widget-amd64.deb
+          dpkg-deb --build \
+            deb-package \
+            "LiveFlow-Widget-${VERSION}-amd64.deb"
 
       - name: Upload Linux DEB
         uses: actions/upload-artifact@v4
         with:
           name: LiveFlow-Widget-Linux-DEB
-          path: LiveFlow-Widget-amd64.deb
+          path: LiveFlow-Widget-${{ needs.version.outputs.version }}-amd64.deb
+
   build-windows:
     runs-on: windows-latest
+    needs: version
 
     steps:
       - name: Checkout
@@ -98,15 +123,17 @@ jobs:
 
       - name: Rename executable
         run: |
-          Rename-Item dist/widget.exe LiveFlow-Widget.exe
+          Rename-Item dist/widget.exe "LiveFlow-Widget-${{ needs.version.outputs.version }}-Windows.exe"
 
       - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:
           name: LiveFlow-Widget-Windows
-          path: dist/LiveFlow-Widget.exe
+          path: dist/LiveFlow-Widget-${{ needs.version.outputs.version }}-Windows.exe
+
   build-macos:
     runs-on: macos-latest
+    needs: version
 
     steps:
       - name: Checkout
@@ -126,27 +153,33 @@ jobs:
         run: |
           pyinstaller \
             --windowed \
-            --name LiveFlow-Widget \
+            --name "LiveFlow-Widget-${{ needs.version.outputs.version }}" \
             --add-data "config:config" \
             app/widget.py
 
       - name: Create DMG
         run: |
           mkdir -p dmg
-          cp -R dist/LiveFlow-Widget.app dmg/LiveFlow-Widget.app
-          hdiutil create -volname "LiveFlow Widget" \
+
+          cp -R \
+            "dist/LiveFlow-Widget-${{ needs.version.outputs.version }}.app" \
+            dmg/
+
+          hdiutil create \
+            -volname "LiveFlow Widget ${{ needs.version.outputs.version }}" \
             -srcfolder dmg \
             -ov \
             -format UDZO \
-            LiveFlow-Widget-macOS.dmg
+            "LiveFlow-Widget-${{ needs.version.outputs.version }}-macOS.dmg"
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
           name: LiveFlow-Widget-macOS
-          path: LiveFlow-Widget-macOS.dmg
+          path: LiveFlow-Widget-${{ needs.version.outputs.version }}-macOS.dmg
+
   release:
-    needs: [build-linux, build-windows, build-macos]
+    needs: [version, build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
 
     permissions:
@@ -166,7 +199,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="v1.0.${{ github.run_number }}"
+          VERSION="v${{ needs.version.outputs.version }}"
+
           gh release create "$VERSION" \
             release-files/* \
             --title "LiveFlow Widget $VERSION" \
