@@ -1,34 +1,19 @@
 import sys
 import json
 import signal
-import shutil
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QShortcut, QKeySequence
+from PySide6.QtGui import QFont, QShortcut, QKeySequence, QAction
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QFrame, QScrollArea
+    QLabel, QFrame, QScrollArea, QMenu
 )
 from app.tgju import get_prices
+from app.settings import SettingsWindow
 
-# مسیر پوشه نصب برنامه
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG = BASE_DIR / "config" / "markets.json"
-
-# مسیر فایل تنظیمات در پوشه شخصی کاربر (برای رفع مشکل دسترسی در لینوکس)
-CONFIG_FILE = Path.home() / ".liveflow_settings.json"
-
-# اگر فایل تنظیمات کاربر وجود نداشت، فایل پیش‌فرض را کپی کن یا یک فایل جدید بساز
-if not CONFIG_FILE.exists():
-    try:
-        if DEFAULT_CONFIG.exists():
-            shutil.copy(DEFAULT_CONFIG, CONFIG_FILE)
-        else:
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump({"markets": [], "appearance": {}}, f)
-    except Exception as e:
-        print(f"Error creating config: {e}")
+CONFIG_FILE = BASE_DIR / "config" / "markets.json"
 
 MARKET_SYMBOLS = {
     "sekee": "🪙", "nim": "🪙", "rob": "🪙", "geram18": "🟡", "geram24": "🟡", "ons": "🥇",
@@ -39,7 +24,7 @@ MARKET_SYMBOLS = {
 
 def get_latin_unit(key, lang):
     if key in {"sekee", "nim", "rob", "geram18", "geram24", "price_dollar_rl", "price_eur", "price_gbp", "price_aed", "price_try", "price_cny", "crypto-tether", "tether"}:
-        return "T" if lang == "en" else "تومان"
+        return "T"
     elif "crypto" in key or key in {"ons", "silver", "oil_brent", "oil_wti"}:
         return "$"
     return ""
@@ -60,6 +45,7 @@ class WidgetWindow(QWidget):
         self.language = "fa"
         self.hotkey_close = "Ctrl+Q"
         self.hotkey_hide = "Ctrl+H"
+        self.hotkey_settings = "Ctrl+Alt+S"
 
         self.load_config()
         self.setup_hotkeys()
@@ -84,13 +70,14 @@ class WidgetWindow(QWidget):
             hot_cfg = data.get("hotkeys", {})
             self.hotkey_close = hot_cfg.get("close", "Ctrl+Q")
             self.hotkey_hide = hot_cfg.get("hide", "Ctrl+H")
-        except Exception as e:
-            print(f"Error loading config: {e}")
+            self.hotkey_settings = hot_cfg.get("settings", "Ctrl+Alt+S")
+        except Exception:
             self.markets = []
 
     def setup_hotkeys(self):
         QShortcut(QKeySequence(self.hotkey_close), self).activated.connect(QApplication.quit)
         QShortcut(QKeySequence(self.hotkey_hide), self).activated.connect(self.toggle_visibility)
+        QShortcut(QKeySequence(self.hotkey_settings), self).activated.connect(self.open_settings)
 
     def toggle_visibility(self):
         self.hide() if self.isVisible() else self.show()
@@ -99,7 +86,6 @@ class WidgetWindow(QWidget):
         try:
             if isinstance(price, str):
                 price = price.replace(',', '')
-            
             value = float(price)
             if key in {"sekee", "nim", "rob", "geram18", "geram24", "price_dollar_rl", "price_eur", "price_gbp", "price_aed", "price_try", "price_cny", "crypto-tether", "tether"}:
                 value = value / 10
@@ -223,6 +209,46 @@ class WidgetWindow(QWidget):
         scroll_layout.addStretch()
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #0f172a;
+                color: #f8fafc;
+                border: 1px solid rgba(255, 255, 255, 30);
+                border-radius: 10px;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 6px 20px;
+                border-radius: 6px;
+            }
+            QMenu::item:selected {
+                background-color: #3b82f6;
+                color: white;
+            }
+        """)
+
+        settings_action = QAction("⚙️ تنظیمات", self)
+        settings_action.triggered.connect(self.open_settings)
+        menu.addAction(settings_action)
+
+        menu.addSeparator()
+
+        quit_action = QAction("❌ خروج", self)
+        quit_action.triggered.connect(QApplication.quit)
+        menu.addAction(quit_action)
+
+        menu.exec(event.globalPos())
+
+    def open_settings(self):
+        if not hasattr(self, "settings_win") or not self.settings_win.isVisible():
+            self.settings_win = SettingsWindow()
+            self.settings_win.show()
+        else:
+            self.settings_win.raise_()
+            self.settings_win.activateWindow()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton: self.drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
