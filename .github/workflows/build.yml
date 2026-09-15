@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   version:
     runs-on: ubuntu-latest
@@ -16,9 +19,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Auto increment version
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          PATCH=$((PATCH + 1))
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "$NEW_VERSION" > VERSION
+
+          echo "Old version: $VERSION"
+          echo "New version: $NEW_VERSION"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add VERSION
+          git commit -m "Auto bump version to $NEW_VERSION [skip ci]"
+          git push
+
       - name: Read version
         id: get_version
-        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -45,10 +71,14 @@ jobs:
       - name: Build AppImage
         run: |
           mkdir -p AppDir/usr/bin
+
           cp dist/widget AppDir/usr/bin/liveflow-widget
           chmod +x AppDir/usr/bin/liveflow-widget
 
-          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          wget -q \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+            -O appimagetool
+
           chmod +x appimagetool
 
           ./appimagetool AppDir \
@@ -123,7 +153,8 @@ jobs:
 
       - name: Rename executable
         run: |
-          Rename-Item dist/widget.exe "LiveFlow-Widget-${{ needs.version.outputs.version }}-Windows.exe"
+          Rename-Item dist/widget.exe `
+            "LiveFlow-Widget-${{ needs.version.outputs.version }}-Windows.exe"
 
       - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
