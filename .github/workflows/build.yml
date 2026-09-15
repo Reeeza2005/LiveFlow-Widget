@@ -1,127 +1,43 @@
-name: Build and Release All
+name: Build LiveFlow Widget
+
 on:
   push:
-    tags:
-      - 'v*'
-permissions:
-  contents: write
+    branches: [main]
+  workflow_dispatch:
+
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          
-      - name: Install dependencies & tools
-        run: |
-          sudo apt update
-          sudo apt install -y dpkg-dev wget libfuse2
-          python -m pip install --upgrade pip
-          pip install PySide6 requests pyinstaller
-          
-      - name: Build AppImage and DEB
-        run: |
-          pyinstaller --noconsole --onedir --paths . --name="liveflow-widget" app/widget.py
-          
-          # دانلود اجباری نسخه سالم ابزار
-          wget -qO appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool
-          
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/pixmaps
-          cp -r dist/liveflow-widget/* AppDir/usr/bin/
-          cat << 'EOF' > AppDir/liveflow-widget.desktop
-          [Desktop Entry]
-          Type=Application
-          Name=LiveFlow Widget
-          Exec=liveflow-widget
-          Icon=liveflow-widget
-          Categories=Utility;Finance;
-          EOF
-          cp AppDir/liveflow-widget.desktop AppDir/usr/share/applications/
-          
-          # بررسی وجود آیکون و دانلود خودکار آن در صورت عدم وجود
-          mkdir -p assets
-          if [ ! -f assets/tether.png ]; then
-            wget -qO assets/tether.png https://cryptologos.cc/logos/tether-usdt-logo.png || touch assets/tether.png
-          fi
-          
-          cp assets/tether.png AppDir/liveflow-widget.png
-          cp assets/tether.png AppDir/usr/share/pixmaps/liveflow-widget.png
-          
-          cat << 'EOF' > AppDir/AppRun
-          #!/bin/bash
-          HERE="$(dirname "$(readlink -f "${0}")")"
-          exec "${HERE}/usr/bin/liveflow-widget" "$@"
-          EOF
-          chmod +x AppDir/AppRun
-          
-          export APPIMAGE_EXTRACT_AND_RUN=1
-          ARCH=x86_64 ./appimagetool AppDir LiveFlow-Widget-x86_64.AppImage
-          
-          mkdir -p deb-package/DEBIAN deb-package/opt/liveflow-widget deb-package/usr/bin deb-package/usr/share/applications deb-package/usr/share/pixmaps
-          cp -r dist/liveflow-widget/* deb-package/opt/liveflow-widget/
-          
-          cat << 'EOF' > deb-package/usr/bin/liveflow-widget
-          #!/bin/bash
-          cd /opt/liveflow-widget
-          exec ./liveflow-widget "$@"
-          EOF
-          chmod +x deb-package/usr/bin/liveflow-widget
-          
-          cp AppDir/liveflow-widget.desktop deb-package/usr/share/applications/
-          cp assets/tether.png deb-package/usr/share/pixmaps/liveflow-widget.png
-          
-          cat << 'EOF' > deb-package/DEBIAN/control
-          Package: liveflow-widget
-          Version: 1.1.0
-          Section: utils
-          Priority: optional
-          Architecture: amd64
-          Maintainer: Reza <Reeeza2005@users.noreply.github.com>
-          Description: Modern live currency and market price tracker widget for Linux
-          EOF
-          
-          dpkg-deb --build deb-package LiveFlow-Widget_1.1.0_amd64.deb
+          python-version: "3.11"
 
-      - name: Upload Linux Artifacts to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            LiveFlow-Widget-x86_64.AppImage
-            LiveFlow-Widget_1.1.0_amd64.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install PySide6 requests pyinstaller
-          
-      - name: Build with PyInstaller
+          pip install pyinstaller
+
+      - name: Build Linux executable
         run: |
-          pyinstaller --noconsole --onedir --paths . --name="LiveFlow-Widget" app/widget.py
-          
-      - name: Create ZIP archive for Windows
+          pyinstaller widget.spec
+
+      - name: Build AppImage
         run: |
-          Compress-Archive -Path dist\LiveFlow-Widget -DestinationPath LiveFlow-Widget-Windows-x86_64.zip
-          
-      - name: Upload Windows Artifact to Release
-        uses: softprops/action-gh-release@v2
+          mkdir -p AppDir/usr/bin
+          cp dist/widget AppDir/usr/bin/liveflow-widget
+          chmod +x AppDir/usr/bin/liveflow-widget
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ./appimagetool AppDir LiveFlow-Widget-x86_64.AppImage
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
         with:
-          files: LiveFlow-Widget-Windows-x86_64.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: LiveFlow-Widget-Linux-AppImage
+          path: LiveFlow-Widget-x86_64.AppImage
