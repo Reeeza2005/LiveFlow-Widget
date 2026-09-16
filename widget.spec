@@ -21,6 +21,8 @@ a = Analysis(
         'pynput',
         'pynput.keyboard',
         'pynput.keyboard._xorg',
+        'pynput.mouse',
+        'pynput.mouse._xorg',
         'pynput._util.xorg',
     ],
     hookspath=[],
