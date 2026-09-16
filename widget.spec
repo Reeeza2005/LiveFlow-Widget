@@ -18,6 +18,8 @@ a = Analysis(
         'urllib',
         'urllib.request',
         'urllib.error',
+        'pynput',
+        'pynput.keyboard',
     ],
     hookspath=[],
     hooksconfig={},
