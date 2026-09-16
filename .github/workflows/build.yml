@@ -52,8 +52,13 @@ jobs:
         run: |
           mkdir -p AppDir/usr/bin
 
+          pyinstaller --onefile --name liveflow-updater app/linux_updater.py
+
           cp dist/widget AppDir/usr/bin/liveflow-widget
           chmod +x AppDir/usr/bin/liveflow-widget
+
+          cp dist/liveflow-updater AppDir/usr/bin/liveflow-updater
+          chmod +x AppDir/usr/bin/liveflow-updater
 
           wget -q \
             https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
