@@ -135,6 +135,8 @@ class WidgetWindow(QWidget):
     # --------------------------------------------------------
 
     toggle_requested = Signal()
+    settings_requested = Signal()
+    close_requested = Signal()
 
     # ========================================================
     # Init
@@ -205,6 +207,8 @@ class WidgetWindow(QWidget):
         # اتصال Signal مربوط به Global Hotkey
         # ----------------------------------------------------
 
+        self.settings_requested.connect(self.open_settings)
+        self.close_requested.connect(self.shutdown_app)
         self.toggle_requested.connect(
             self.toggle_visibility
         )
@@ -419,7 +423,7 @@ class WidgetWindow(QWidget):
             )
 
             self.shortcut_close.activated.connect(
-                QApplication.quit
+                self.shutdown_app
             )
 
         # ----------------------------------------------------
@@ -447,6 +451,51 @@ class WidgetWindow(QWidget):
     # Global Hotkey
     # ========================================================
 
+    def _pynput_hotkey(self, hotkey):
+
+        mapping = {
+            "Ctrl": "<ctrl>",
+            "Alt": "<alt>",
+            "Shift": "<shift>",
+            "Super": "<cmd>",
+            "Meta": "<cmd>",
+        }
+
+        parts = [
+            part.strip()
+            for part in hotkey.split("+")
+            if part.strip()
+        ]
+
+        converted = []
+
+        for part in parts:
+            upper = part.upper()
+
+            special = {
+                "ESC": "<esc>",
+                "ENTER": "<enter>",
+                "RETURN": "<enter>",
+                "SPACE": "<space>",
+                "TAB": "<tab>",
+                "BACKSPACE": "<backspace>",
+                "DELETE": "<delete>",
+                "DEL": "<delete>",
+                "UP": "<up>",
+                "DOWN": "<down>",
+                "LEFT": "<left>",
+                "RIGHT": "<right>",
+            }
+
+            if upper in special:
+                converted.append(special[upper])
+            elif upper.startswith("F") and upper[1:].isdigit():
+                converted.append(f"<{upper.lower()}>")
+            else:
+                converted.append(mapping.get(part, part.lower()))
+
+        return "+".join(converted)
+
     def setup_global_hotkey(self):
 
         # ----------------------------------------------------
@@ -470,9 +519,16 @@ class WidgetWindow(QWidget):
 
         try:
 
-            hotkeys = {
-                "<ctrl>+h": self.on_global_toggle
-            }
+            hotkeys = {}
+
+            if self.hotkey_hide:
+                hotkeys[self._pynput_hotkey(self.hotkey_hide)] = self.on_global_toggle
+
+            if self.hotkey_close:
+                hotkeys[self._pynput_hotkey(self.hotkey_close)] = self.on_global_close
+
+            if self.hotkey_settings:
+                hotkeys[self._pynput_hotkey(self.hotkey_settings)] = self.on_global_settings
 
             self.hotkey_listener = (
                 keyboard.GlobalHotKeys(
@@ -485,7 +541,7 @@ class WidgetWindow(QWidget):
             self.hotkey_listener.start()
 
             print(
-                "Global hotkey Ctrl+H enabled"
+                "Global hotkeys enabled: " + ", ".join(hotkeys.keys())
             )
 
         except Exception as e:
@@ -498,6 +554,30 @@ class WidgetWindow(QWidget):
     # Global Hotkey Callback
     # ========================================================
 
+    def shutdown_app(self):
+
+        try:
+            if self.hotkey_listener is not None:
+                self.hotkey_listener.stop()
+                self.hotkey_listener = None
+        except Exception as e:
+            print(f"Hotkey listener stop error: {e}")
+
+        QApplication.quit()
+
+
+    def shutdown_app(self):
+
+        try:
+            if self.hotkey_listener is not None:
+                self.hotkey_listener.stop()
+                self.hotkey_listener = None
+        except Exception as e:
+            print(f"Hotkey listener stop error: {e}")
+
+        QApplication.quit()
+
+
     def on_global_toggle(self):
 
         # ----------------------------------------------------
@@ -509,6 +589,12 @@ class WidgetWindow(QWidget):
         # ----------------------------------------------------
 
         self.toggle_requested.emit()
+
+    def on_global_close(self):
+        self.close_requested.emit()
+
+    def on_global_settings(self):
+        self.settings_requested.emit()
 
     # ========================================================
     # Toggle Visibility

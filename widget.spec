@@ -11,6 +11,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('config', 'config'),
+        ('VERSION', '.'),
         ('AppDir/liveflow-widget.png', '.'),
     ],
     hiddenimports=[

@@ -1,15 +1,19 @@
+import os
 import sys
 import json
+import urllib.request
+import shutil
+import subprocess
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QThread, QObject
 from PySide6.QtGui import QColor, QPainter, QFont, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QStackedWidget,
     QSlider, QSpinBox, QFontComboBox, QTreeWidget, QTreeWidgetItem,
     QListWidget, QListWidgetItem, QAbstractItemView,
-    QKeySequenceEdit, QMessageBox, QLineEdit, QComboBox, QCheckBox
+    QKeySequenceEdit, QMessageBox, QLineEdit, QComboBox, QCheckBox, QDialog, QProgressBar
 )
 
 
@@ -81,6 +85,64 @@ ALL_MARKETS = {
 # ============================================================
 # Settings Window
 # ============================================================
+
+class UpdateProgressDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("LiveFlow Widget")
+        self.setFixedSize(430, 150)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+
+        self.label = QLabel("در حال دانلود بروزرسانی...")
+        self.label.setStyleSheet("color: #e5e7eb; font-size: 14px;")
+        layout.addWidget(self.label)
+
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.progress.setTextVisible(True)
+        self.progress.setStyleSheet("""
+            QProgressBar {
+                background: #1e293b;
+                color: #e5e7eb;
+                border: 1px solid #334155;
+                border-radius: 7px;
+                text-align: center;
+                height: 22px;
+            }
+            QProgressBar::chunk {
+                background: #38bdf8;
+                border-radius: 6px;
+            }
+        """)
+        layout.addWidget(self.progress)
+
+        self.cancelled = False
+        self.cancel_button = QPushButton("لغو")
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background: #1e293b;
+                color: #e5e7eb;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 6px 16px;
+            }
+            QPushButton:hover {
+                background: #334155;
+            }
+        """)
+        layout.addWidget(self.cancel_button, alignment=Qt.AlignRight)
+
+        self.cancel_button.clicked.connect(self.cancel_download)
+        self.setStyleSheet("QDialog { background: #0f172a; }")
+    def cancel_download(self):
+        self.cancelled = True
+        self.reject()
+
 
 class SettingsWindow(QWidget):
 
@@ -505,10 +567,15 @@ Terminal=false
             "⌨    کلیدهای میانبر"
         )
 
+        self.btn_about = QPushButton(
+            "ⓘ    درباره برنامه"
+        )
+
         for btn in [
             self.btn_markets,
             self.btn_appearance,
-            self.btn_hotkeys
+            self.btn_hotkeys,
+            self.btn_about
         ]:
 
             btn.setCursor(
@@ -1058,6 +1125,62 @@ Terminal=false
         )
 
         # ====================================================
+        # About page
+        # ====================================================
+
+        page_about = QWidget()
+        layout_about = QVBoxLayout(page_about)
+        layout_about.setSpacing(15)
+
+        title_about = QLabel("LiveFlow Widget")
+        title_about.setFont(QFont("Noto Sans", 24, QFont.Bold))
+        layout_about.addWidget(title_about)
+
+        version_file = BASE_DIR / "VERSION"; version = version_file.read_text(encoding="utf-8").strip() if version_file.exists() else "نامشخص"; version_about = QLabel(f"نسخه {version}")
+        version_about.setStyleSheet("color: #38bdf8; font-size: 15px;")
+        layout_about.addWidget(version_about)
+
+        developer_about = QLabel("توسعه‌دهنده: Reza Moghani")
+        developer_about.setStyleSheet("color: #cbd5e1; font-size: 14px;")
+        layout_about.addWidget(developer_about)
+
+        desc_about = QLabel(
+            "ویجت نمایش زنده قیمت بازارها، ارزها، طلا و ارزهای دیجیتال."
+        )
+        desc_about.setWordWrap(True)
+        desc_about.setStyleSheet("color: #cbd5e1; font-size: 14px;")
+        layout_about.addWidget(desc_about)
+
+        github_about = QLabel(
+            '<a href="https://github.com/Reeeza2005/LiveFlow-Widget">'
+            'صفحه پروژه در GitHub</a>'
+        )
+        github_about.setOpenExternalLinks(True)
+        github_about.setStyleSheet("color: #38bdf8; font-size: 14px;")
+        layout_about.addWidget(github_about)
+
+        self.btn_update = QPushButton("🔄    بررسی بروزرسانی")
+        self.btn_update.setStyleSheet("background: rgba(56,189,248,30); color: #38bdf8;")
+        self.btn_update.clicked.connect(self.check_for_updates)
+        layout_about.addWidget(self.btn_update)
+
+        self.btn_install_update = QPushButton("⬇️    بروزرسانی برنامه")
+        self.btn_install_update.setEnabled(False)
+        self.btn_install_update.clicked.connect(self.install_update)
+        self.btn_install_update.setStyleSheet("background: rgba(52,211,153,30); color: #34d399;")
+        layout_about.addWidget(self.btn_install_update)
+
+        self.update_status = QLabel("")
+        self.update_status.setWordWrap(True)
+        self.update_status.setStyleSheet("color: #cbd5e1; font-size: 13px;")
+        layout_about.addWidget(self.update_status)
+
+        layout_about.addStretch()
+
+        self.stacked.addWidget(page_about)
+
+
+        # ====================================================
         # Navigation
         # ====================================================
 
@@ -1085,10 +1208,203 @@ Terminal=false
             )
         )
 
+        self.btn_about.clicked.connect(
+            lambda:
+            self.switch_page(
+                3,
+                self.btn_about
+            )
+        )
+
         self.switch_page(
             0,
             self.btn_markets
         )
+
+    # ========================================================
+    # Check for Updates
+    # ========================================================
+
+    def check_for_updates(self):
+        self.btn_install_update.setEnabled(False)
+        try:
+            version_file = BASE_DIR / "VERSION"
+            current = version_file.read_text(encoding="utf-8").strip()
+
+            url = "https://api.github.com/repos/Reeeza2005/LiveFlow-Widget/releases/latest"
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "LiveFlow-Widget"}
+            )
+
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.load(response)
+
+            latest = str(data.get("tag_name", "")).lstrip("v")
+
+            if not latest:
+                self.update_status.setText("نتوانستم نسخه جدید را پیدا کنم.")
+                return
+
+            def version_tuple(v):
+                return tuple(int(x) for x in v.split(".")[:3])
+
+            if version_tuple(latest) > version_tuple(current):
+                self.update_status.setText(
+                    f"بروزرسانی نسخه {latest} در دسترس است (نسخه فعلی: {current})"
+                )
+                self.btn_install_update.setEnabled(True)
+            else:
+                self.update_status.setText(
+                    f"برنامه شما به‌روز است — نسخه {current}"
+                )
+
+        except Exception as e:
+            self.update_status.setText(
+                f"خطا در بررسی بروزرسانی: {e}"
+            )
+
+    def install_update(self):
+        import platform
+        import tempfile
+        from PySide6.QtWidgets import QProgressDialog
+
+        try:
+            current_app = os.environ.get("APPIMAGE")
+            if not current_app:
+                self.update_status.setText("بروزرسانی خودکار فقط برای نسخه AppImage فعال است.")
+                return
+            version_file = BASE_DIR / "VERSION"
+            current = version_file.read_text(encoding="utf-8").strip()
+
+            url = "https://api.github.com/repos/Reeeza2005/LiveFlow-Widget/releases/latest"
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "LiveFlow-Widget"}
+            )
+
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.load(response)
+
+            latest = str(data.get("tag_name", "")).lstrip("v")
+            assets = data.get("assets", [])
+
+            def version_tuple(v):
+                return tuple(int(x) for x in v.split(".")[:3])
+
+            if not latest or version_tuple(latest) <= version_tuple(current):
+                self.update_status.setText(
+                    f"برنامه شما به‌روز است — نسخه {current}"
+                )
+                self.btn_install_update.setEnabled(False)
+                return
+
+            system = platform.system()
+            machine = platform.machine().lower()
+            asset_name = None
+
+            if system == "Linux":
+                if machine in ("x86_64", "amd64"):
+                    asset_name = f"LiveFlow-Widget-{latest}-x86_64.AppImage"
+            elif system == "Windows":
+                asset_name = f"LiveFlow-Widget-{latest}-Windows.exe"
+            elif system == "Darwin":
+                asset_name = f"LiveFlow-Widget-{latest}-macOS.dmg"
+
+            asset = next(
+                (item for item in assets if item.get("name") == asset_name),
+                None
+            )
+
+            if not asset:
+                self.update_status.setText(
+                    f"فایل بروزرسانی مناسب برای {system} پیدا نشد."
+                )
+                return
+
+            download_url = asset.get("browser_download_url")
+            total = int(asset.get("size", 0))
+
+            temp_dir = Path(tempfile.mkdtemp(prefix="liveflow-update-"))
+            download_path = temp_dir / asset_name
+
+            self.update_status.setText(
+                f"در حال دانلود نسخه {latest} ..."
+            )
+
+            progress = UpdateProgressDialog(self)
+            progress.show()
+            QApplication.processEvents()
+
+            req = urllib.request.Request(
+                download_url,
+                headers={"User-Agent": "LiveFlow-Widget"}
+            )
+
+            downloaded = 0
+            with urllib.request.urlopen(req, timeout=30) as response, open(download_path, "wb") as output:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    downloaded += len(chunk)
+
+                    if total > 0:
+                        percent = min(100, int(downloaded * 100 / total))
+                        progress.progress.setValue(percent)
+                        QApplication.processEvents()
+
+                    if progress.cancelled:
+                        output.close()
+                        download_path.unlink(missing_ok=True)
+                        temp_dir.rmdir()
+                        progress.close()
+                        self.update_status.setText("بروزرسانی لغو شد.")
+                        return
+
+            progress.progress.setValue(100)
+            progress.close()
+
+            self.update_status.setText(
+                f"دانلود نسخه {latest} با موفقیت انجام شد."
+            )
+            self.btn_install_update.setEnabled(False)
+
+            self._downloaded_update_path = download_path
+            self._update_temp_dir = temp_dir
+            self._update_latest_version = latest
+
+            appdir = os.environ.get("APPDIR")
+            if not appdir:
+                self.update_status.setText("مسیر AppImage پیدا نشد.")
+                return
+
+            updater = Path(appdir) / "usr" / "bin" / "liveflow-updater"
+            if not updater.exists():
+                self.update_status.setText("فایل بروزرسانی داخل برنامه پیدا نشد.")
+                return
+
+            self.update_status.setText("در حال نصب بروزرسانی و راه‌اندازی مجدد...")
+            QApplication.processEvents()
+
+            updater_copy = Path(tempfile.mkdtemp(prefix="liveflow-updater-")) / "liveflow-updater"
+            shutil.copy2(updater, updater_copy)
+            os.chmod(updater_copy, 0o755)
+
+            subprocess.Popen([
+                str(updater_copy),
+                current_app,
+                str(download_path),
+                str(temp_dir),
+            ], start_new_session=True)
+
+            QApplication.quit()
+
+        except Exception as e:
+            self.update_status.setText(
+                f"خطا در دانلود بروزرسانی: {e}"
+            )
 
     # ========================================================
     # Populate Markets
@@ -1260,7 +1576,8 @@ Terminal=false
         for btn in [
             self.btn_markets,
             self.btn_appearance,
-            self.btn_hotkeys
+            self.btn_hotkeys,
+            self.btn_about
         ]:
 
             btn.setStyleSheet(

@@ -21,3 +21,5 @@ build/
 dist/
 AppDir/usr/bin/liveflow-widget
 *.AppImage
+.venv/
+squashfs-root/
