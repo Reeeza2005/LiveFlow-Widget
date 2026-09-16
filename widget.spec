@@ -20,6 +20,8 @@ a = Analysis(
         'urllib.error',
         'pynput',
         'pynput.keyboard',
+        'pynput.keyboard._xorg',
+        'pynput._util.xorg',
     ],
     hookspath=[],
     hooksconfig={},
