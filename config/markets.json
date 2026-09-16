@@ -1,6 +1,11 @@
 {
   "markets": [
     {
+      "key": "price_dollar_rl",
+      "name": "دلار آمریکا",
+      "enabled": true
+    },
+    {
       "key": "sekee",
       "name": "سکه امامی",
       "enabled": true
@@ -13,11 +18,6 @@
     {
       "key": "ons",
       "name": "انس جهانی طلا",
-      "enabled": true
-    },
-    {
-      "key": "price_dollar_rl",
-      "name": "دلار آمریکا",
       "enabled": true
     },
     {
@@ -49,11 +49,16 @@
       "key": "gc30",
       "name": "شاخص بورس",
       "enabled": true
+    },
+    {
+      "key": "price_aed",
+      "name": "درهم امارات",
+      "enabled": true
     }
   ],
   "appearance": {
-    "opacity": 228,
-    "font_size": 10,
+    "opacity": 203,
+    "font_size": 11,
     "font_family": "Noto Sans",
     "rows_visible": 6,
     "interval": 120,
@@ -63,6 +68,6 @@
   "hotkeys": {
     "close": "Ctrl+Q",
     "hide": "Ctrl+H",
-    "settings": "Ctrl+W"
+    "settings": "Ctrl+Alt+A"
   }
 }

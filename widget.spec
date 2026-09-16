@@ -1,12 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+PROJECT_DIR = Path(SPECPATH)
+ICON_FILE = PROJECT_DIR / "AppDir" / "liveflow-widget.png"
 
 a = Analysis(
     ['app/widget.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('config', 'config')],
-    hiddenimports=['urllib', 'urllib.request', 'urllib.error'],
+    datas=[
+        ('config', 'config'),
+        ('AppDir/liveflow-widget.png', '.'),
+    ],
+    hiddenimports=[
+        'urllib',
+        'urllib.request',
+        'urllib.error',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -14,6 +25,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -35,4 +47,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ICON_FILE),
 )

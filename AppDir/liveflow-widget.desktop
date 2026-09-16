@@ -1,6 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=LiveFlow Widget
+Comment=Live financial market widget
 Exec=liveflow-widget
 Icon=liveflow-widget
 Categories=Utility;Finance;
+Terminal=false
+StartupNotify=false
