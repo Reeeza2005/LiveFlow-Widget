@@ -23,3 +23,5 @@ AppDir/usr/bin/liveflow-widget
 *.AppImage
 .venv/
 squashfs-root/
+
+!windows-updater.spec

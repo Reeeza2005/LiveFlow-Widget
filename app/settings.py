@@ -1270,9 +1270,21 @@ Terminal=false
         from PySide6.QtWidgets import QProgressDialog
 
         try:
-            current_app = os.environ.get("APPIMAGE")
-            if not current_app:
-                self.update_status.setText("بروزرسانی خودکار فقط برای نسخه AppImage فعال است.")
+            system = platform.system()
+
+            if system == "Linux":
+                current_app = os.environ.get("APPIMAGE")
+                if not current_app:
+                    self.update_status.setText("بروزرسانی خودکار فقط برای نسخه AppImage فعال است.")
+                    return
+            elif system == "Windows":
+                current_app = sys.executable
+            elif system == "Darwin":
+                current_app = sys.executable
+            else:
+                self.update_status.setText(
+                    f"سیستم‌عامل {system} برای بروزرسانی پشتیبانی نمی‌شود."
+                )
                 return
             version_file = BASE_DIR / "VERSION"
             current = version_file.read_text(encoding="utf-8").strip()
@@ -1299,7 +1311,6 @@ Terminal=false
                 self.btn_install_update.setEnabled(False)
                 return
 
-            system = platform.system()
             machine = platform.machine().lower()
             asset_name = None
 
@@ -1375,31 +1386,69 @@ Terminal=false
             self._update_temp_dir = temp_dir
             self._update_latest_version = latest
 
-            appdir = os.environ.get("APPDIR")
-            if not appdir:
-                self.update_status.setText("مسیر AppImage پیدا نشد.")
+            if system == "Linux":
+                appdir = os.environ.get("APPDIR")
+                if not appdir:
+                    self.update_status.setText("مسیر AppImage پیدا نشد.")
+                    return
+
+                updater = Path(appdir) / "usr" / "bin" / "liveflow-updater"
+                if not updater.exists():
+                    self.update_status.setText("فایل بروزرسانی داخل برنامه پیدا نشد.")
+                    return
+
+                self.update_status.setText("در حال نصب بروزرسانی و راه‌اندازی مجدد...")
+                QApplication.processEvents()
+
+                updater_copy = Path(tempfile.mkdtemp(prefix="liveflow-updater-")) / "liveflow-updater"
+                shutil.copy2(updater, updater_copy)
+                os.chmod(updater_copy, 0o755)
+
+                subprocess.Popen([
+                    str(updater_copy),
+                    current_app,
+                    str(download_path),
+                    str(temp_dir),
+                ], start_new_session=True)
+
+                QApplication.quit()
+
+            elif system == "Windows":
+                updater_asset = next(
+                    (item for item in assets if item.get("name") == "liveflow-updater.exe"),
+                    None
+                )
+                if not updater_asset:
+                    self.update_status.setText("فایل بروزرسانی ویندوز پیدا نشد.")
+                    return
+
+                updater_url = updater_asset.get("browser_download_url")
+                updater_path = temp_dir / "liveflow-updater.exe"
+
+                req = urllib.request.Request(
+                    updater_url,
+                    headers={"User-Agent": "LiveFlow-Widget"}
+                )
+                with urllib.request.urlopen(req, timeout=30) as response, open(updater_path, "wb") as output:
+                    shutil.copyfileobj(response, output)
+
+                self.update_status.setText("در حال نصب بروزرسانی و راه‌اندازی مجدد...")
+                QApplication.processEvents()
+
+                subprocess.Popen([
+                    str(updater_path),
+                    str(current_app),
+                    str(download_path),
+                    str(temp_dir),
+                ])
+
+                QApplication.quit()
+
+            elif system == "Darwin":
+                self.update_status.setText(
+                    "بروزرسانی خودکار macOS هنوز آماده نشده است."
+                )
                 return
-
-            updater = Path(appdir) / "usr" / "bin" / "liveflow-updater"
-            if not updater.exists():
-                self.update_status.setText("فایل بروزرسانی داخل برنامه پیدا نشد.")
-                return
-
-            self.update_status.setText("در حال نصب بروزرسانی و راه‌اندازی مجدد...")
-            QApplication.processEvents()
-
-            updater_copy = Path(tempfile.mkdtemp(prefix="liveflow-updater-")) / "liveflow-updater"
-            shutil.copy2(updater, updater_copy)
-            os.chmod(updater_copy, 0o755)
-
-            subprocess.Popen([
-                str(updater_copy),
-                current_app,
-                str(download_path),
-                str(temp_dir),
-            ], start_new_session=True)
-
-            QApplication.quit()
 
         except Exception as e:
             self.update_status.setText(
